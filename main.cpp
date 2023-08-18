@@ -4,6 +4,7 @@ struct RunConfig {
 	std::string path = "chatglm-6b-int4.bin"; // 模型文件路径
 	int threads = 4; // 使用的线程数
 	bool lowMemMode = false; // 是否使用低内存模式
+    bool printProfile = false; // 是否打印性能分析
 };
 
 void Usage() {
@@ -16,6 +17,7 @@ void Usage() {
     std::cout << "<--top_k> <args>:             采样参数top_k" << std::endl;
     std::cout << "<--temperature> <args>:       采样参数温度，越高结果越不固定" << std::endl;
     std::cout << "<--repeat_penalty> <args>:    采样参数重复惩罚" << std::endl;
+    std::cout << "<--print_profiler>:           打印推理各个算子时间" << std::endl;
 }
 
 void ParseArgs(int argc, char **argv, RunConfig &config, fastllm::GenerationConfig &generationConfig) {
@@ -43,6 +45,8 @@ void ParseArgs(int argc, char **argv, RunConfig &config, fastllm::GenerationConf
             generationConfig.temperature = atof(sargv[++i].c_str());
         } else if (sargv[i] == "--repeat_penalty") {
             generationConfig.repeat_penalty = atof(sargv[++i].c_str());
+        } else if (sargv[i] == "--print_profiler"){
+            config.printProfile = true;
         } else {
 			Usage();
 			exit(-1);
@@ -90,6 +94,10 @@ int main(int argc, char **argv) {
                 printf("\n");
             }
         }, generationConfig);
+        if(config.printProfile){
+            fastllm::PrintProfiler();
+            fastllm::ClearProfiler();
+        }
         history = model->MakeHistory(history, round, input, ret);
         round++;
     }

@@ -111,9 +111,9 @@ namespace fastllm {
     void Executor::PrintProfiler() {
         float sum = 0.0;
         for (auto &it : profiler) {
-            printf("%s spend %f\n", it.first.c_str(), it.second);
+            printf("%s spend %fs \n", it.first.c_str(), it.second);
             sum += it.second;
         }
-        printf("total spend %f\n", sum);
+        printf("total spend %fs\n", sum);
     }
 }

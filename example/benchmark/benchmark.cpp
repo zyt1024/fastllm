@@ -13,6 +13,8 @@ struct BenchmarkConfig {
     int batch = -1; // batch数, -1时使用文件中的行数作为batch
     std::string file; // 输入文件
     std::string output; // 输出文件，如果不设定则输出到屏幕
+    bool printProfile = false; // 是否打印性能分析
+
 };
 
 void Usage() {
@@ -23,6 +25,7 @@ void Usage() {
     std::cout << "<-l|--limit> <args>:          输出token数限制" << std::endl;
     std::cout << "<-b|--batch> <args>:          batch数"      << std::endl;
     std::cout << "<-f|--file> <args>:           输入文件，文件中每行一个prompt，如果行数不足batch则用之前的prompt补充"      << std::endl;
+    std::cout << "<--print_profiler>:           打印推理各个算子时间" << std::endl;
 }
 
 void ParseArgs(int argc, char **argv, BenchmarkConfig &config) {
@@ -47,6 +50,8 @@ void ParseArgs(int argc, char **argv, BenchmarkConfig &config) {
             config.file = sargv[++i];
         } else if (sargv[i] == "-o" || sargv[i] == "--output") {
             config.output = sargv[++i];
+        } else if (sargv[i] == "--print_profiler"){
+            config.printProfile = true;
         } else {
             Usage();
             exit(-1);
@@ -109,6 +114,7 @@ int main(int argc, char **argv) {
             }
         }
     }, generationConfig);
+
     float promptSpend = fastllm::GetSpan(st, promptTime);
     float spend = fastllm::GetSpan(promptTime, std::chrono::system_clock::now());
 
@@ -129,5 +135,9 @@ int main(int argc, char **argv) {
     printf("prompt use %f s\n", promptSpend);
     printf("prompt speed = %f tokens / s\n", (float)promptTokenNum / promptSpend);
     printf("output %d tokens\nuse %f s\nspeed = %f tokens / s\n", tokens, spend, tokens / spend);
+    if(config.printProfile){
+        printf("==================== per op sepend ====================\n");
+        fastllm::PrintProfiler();
+    }
     return 0;
 }
