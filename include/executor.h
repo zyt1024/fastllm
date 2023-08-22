@@ -11,7 +11,11 @@ namespace fastllm {
     class Executor {
     private:
         std::vector <BaseDevice*> devices;
-        std::map <std::string, float> profiler;
+        std::map <std::string, float> profiler; // 统计每一个算子耗时,相同算子采用累加形式
+        // 统计某算子多次调用的数据维度
+        std::map <std::string, std::vector<DataDict>> op_profile;
+        // 统计某算子多次调用耗费时间
+        std::map<std::string, std::vector<float>> op_profile_t;
 
     public:
         Executor (); // 创建默认的Executor

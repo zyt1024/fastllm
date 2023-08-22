@@ -100,7 +100,7 @@ namespace fastllm {
         float min, max;
         uint8_t zeroPoint;
         float scale;
-        int type; // 0: 有zero点 1: 不需要zero点
+        int type; // 0: 有zero点  1: 不需要zero点
 
         LowBitConfig(float min, float max, int bit, int type) {
             this->min = min;
@@ -140,14 +140,14 @@ namespace fastllm {
                 zeroPoint = static_cast<uint8_t>(std::round(initial_zero_point));
             }
 
-            if (type == 1) {
+            if (type == 1) { // 如果不需要zero_point, 则this->min = 0
                 this->min = -this->scale * zeroPoint;
                 return;
             }
         }
 
         uint8_t quantization(const float &realNumber) const {
-            if (type == 0) {
+            if (type == 0) { // 0是有zero_points的
                 return (uint8_t) (std::min((double) ((1 << bit) - 1),
                                            std::max(realNumber / scale + zeroPoint + 0.5, 0.0)));
             } else {

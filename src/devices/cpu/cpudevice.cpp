@@ -1003,7 +1003,7 @@ namespace fastllm {
         }
         int per = k / threadNum;
         int cur = 0;
-        if (threadNum == 1) {
+        if (threadNum == 1) {  // 线程数量为1
             MultiplyInt4(a, b + cur * m / 2, c + cur, n, m, k - cur, k,
                          weightSums + cur, weightZeros + cur, scales + cur,
                          (bias == nullptr ? (float*)nullptr : bias + cur), configs.data(), inputSums.data());
@@ -1061,7 +1061,7 @@ namespace fastllm {
 
     void CpuLinearOp::Run(const std::string &opType, const fastllm::DataDict &datas,
                           const fastllm::FloatDict &floatParams, const fastllm::IntDict &intParams) {
-//auto st = std::chrono::system_clock::now();
+        auto st = std::chrono::system_clock::now();
         Data &input = *(datas.find("input")->second);
         Data &output = *(datas.find("output")->second);
         Data &weight = *(datas.find("weight")->second);
@@ -1130,8 +1130,8 @@ namespace fastllm {
                 float *inputData = (float *) input.cpuData;
                 uint8_t *weightData = (uint8_t *) weight.cpuData;
                 float *outputData = (float *) output.cpuData;
-                float *biasData = bias.dims.size() > 0 ? (float *) bias.cpuData : nullptr;
-                weight.CalcWeightSum();
+                float *biasData = bias.dims.size() > 0 ? (float *) bias.cpuData : nullptr; 
+                weight.CalcWeightSum();// ?
 
                 std::vector<LowBitConfig> inputConfigs;
                 for (int i = 0; i < n; i++) {
@@ -1179,24 +1179,24 @@ namespace fastllm {
                     }
                 }
 
-                /*
-                这部分是float输入，float输出
-                int threadNum = threads;
-                int per = k / threadNum;
-                int cur = 0;
-                std::vector<std::thread *> threads;
-                for (int i = 0; i < threadNum - 1; i++) {
-                    int end = cur + per + (cur + per * (threadNum - i) < k);
-                    threads.push_back(new std::thread(&Int8LinearPart, inputData, weightData, biasData, outputData,
-                                                      weight.perChannelsConfigs.data(), n, m, k, cur, end));
-                    cur = end;
-                }
-                Int8LinearPart(inputData, weightData, biasData, outputData, weight.perChannelsConfigs.data(), n, m, k, cur, k);
-                for (int i = 0; i < threadNum - 1; i++) {
-                    threads[i]->join();
-                    delete threads[i];
-                }
-                */
+                // /*
+                // 这部分是float输入，float输出
+                // int threadNum = GetThreads();
+                // int per = k / threadNum;
+                // int cur = 0;
+                // std::vector<std::thread *> threads;
+                // for (int i = 0; i < threadNum - 1; i++) {
+                //     int end = cur + per + (cur + per * (threadNum - i) < k);
+                //     threads.push_back(new std::thread(&Int8LinearPart, inputData, weightData, biasData, outputData,
+                //                                       weight.perChannelsConfigs.data(), n, m, k, cur, end));
+                //     cur = end;
+                // }
+                // Int8LinearPart(inputData, weightData, biasData, outputData, weight.perChannelsConfigs.data(), n, m, k, cur, k);
+                // for (int i = 0; i < threadNum - 1; i++) {
+                //     threads[i]->join();
+                //     delete threads[i];
+                // }
+                // */
             } else if (weight.dataType == DataType::INT4 || weight.dataType == DataType::INT4_NOZERO) {
                 float *inputData = (float *) input.cpuData;
                 uint8_t *weightData = (uint8_t *) weight.cpuData;
@@ -1204,6 +1204,7 @@ namespace fastllm {
                 float *biasData = bias.dims.size() > 0 ? (float *) bias.cpuData : nullptr;
                 weight.CalcWeightSum();
 
+                // 量化操作 a = [n, m], b = [k, m], c = aT(b') = [n, k],输入是一个n*m的操作
                 std::vector<LowBitConfig> inputConfigs;
                 for (int i = 0; i < n; i++) {
                     float minValue = 1e9, maxValue = -1e9;
@@ -1211,13 +1212,15 @@ namespace fastllm {
                         minValue = std::min(minValue, inputData[i * m + j]);
                         maxValue = std::max(maxValue, inputData[i * m + j]);
                     }
-                    inputConfigs.push_back(LowBitConfig(minValue, maxValue, 8, 0));
-                }
+                    inputConfigs.push_back(LowBitConfig(minValue, maxValue, 8, 0));// 最小值、最大值、8位、有zero_points
+                }// 求最大最小值,并设置量化设置
+
                 std::vector<uint8_t> uinput;
                 uinput.resize(n * m);
                 for (int i = 0; i < n * m; i++) {
                     uinput[i] = inputConfigs[i / m].quantization(inputData[i]);
                 }
+                //量化结束
 #ifdef __AVX__
                 uint8_t *temp = new uint8_t[32];
                 for (int i = 0; i < n; i++) {
@@ -1292,9 +1295,9 @@ namespace fastllm {
         } else {
             ErrorInFastLLM("Linear error: unsupport weight's dataType.\n");
         }
-//float spend = GetSpan(st, std::chrono::system_clock::now());
-//float gops = (float)n * m * k / spend / 1e9;
-// printf("n = %d, m = %d, k = %d, spend %f s, gops = %f\n", n, m, k, spend, gops);
+        float spend = GetSpan(st, std::chrono::system_clock::now());
+        float gops = (float)n * m * k * 2 / spend / 1e9;
+        printf("n = %d, m = %d, k = %d, spend %f s, gops = %f\n", n, m, k, spend, gops);
     }
 
     void CpuSplitOp::Reshape(const std::string &opType, const fastllm::DataDict &datas,

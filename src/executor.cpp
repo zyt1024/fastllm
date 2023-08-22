@@ -63,6 +63,7 @@ namespace fastllm {
 
     void Executor::Run(const std::string &opType, const fastllm::DataDict &datas, const fastllm::FloatDict &floatParams,
                        const fastllm::IntDict &intParams) {
+
         auto st = std::chrono::system_clock::now();
         bool lockInCPU = false;
         for (auto &it: datas) {
@@ -101,6 +102,11 @@ namespace fastllm {
             }
         }
         float spend = GetSpan(st, std::chrono::system_clock::now());
+
+        // 在这里统计输入形状,并且只是统计opType为Linear的算子
+        op_profile[opType].push_back(datas);
+        op_profile_t[opType].push_back(spend);
+        // 输入数据和权重和bias都在DataDict中存储着
         profiler[opType] += spend;
     }
 
@@ -109,11 +115,28 @@ namespace fastllm {
     }
 
     void Executor::PrintProfiler() {
+
+        // 只打印Linear算子的耗时和维度
+        std::vector<fastllm::DataDict> dicv = op_profile.at("Linear");
+        std::vector<float> timev =  op_profile_t.at("Linear");
+        if(dicv.size() != timev.size()){
+            printf("Error!");
+            // return;
+        }
+        
+        float sum_1 = 0.0;
+        for(int i = 0; i < timev.size(); ++i){
+            fastllm::DataDict dic = dicv[i];
+            sum_1 +=  timev[i];
+            printf("Linear %d spend %fs \n",i + 1, timev[i]);
+            
+        }
         float sum = 0.0;
         for (auto &it : profiler) {
             printf("%s spend %fs \n", it.first.c_str(), it.second);
             sum += it.second;
         }
-        printf("total spend %fs\n", sum);
+        // printf("total spend %fs\n", sum);
+        printf("total spend %fs and %fs \n", sum, sum_1);
     }
 }
