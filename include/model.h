@@ -6,7 +6,7 @@
 #define FASTLLM_MODEL_H
 
 #include "basellm.h"
-
+#include <sstream>
 namespace fastllm {
     std::unique_ptr<basellm> CreateLLMModelFromFile(const std::string &fileName);
 

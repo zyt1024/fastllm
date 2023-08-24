@@ -45,6 +45,10 @@ namespace fastllm {
     static bool lowMemMode = false;
     static bool kvCacheInCPU = false;
 
+    //set para
+    int outNTileSize = 4, outKTileSize = 256, outMTileSize = 256;
+    int nTileSize = 2, kTileSize = 128, mTileSize = 128;
+
     void PrintInstructionInfo() {
         std::string avx = "OFF", avx2 = "OFF", aarch64 = "OFF", neonFp16 = "OFF", neonDot = "OFF";
 #ifdef __AVX__
@@ -67,6 +71,43 @@ namespace fastllm {
         printf("AARCH64: %s\n", aarch64.c_str());
         printf("Neon FP16: %s\n", neonFp16.c_str());
         printf("Neon DOT: %s\n", neonDot.c_str());
+    }
+
+    void setOutNTIleSize(int on){
+        outNTileSize = on;
+    }
+    void setOutKTIleSize(int ok){
+        outKTileSize = ok;
+    }
+    void setOutMTIleSize(int om){
+        outMTileSize = om;
+    }
+    void setNTIleSize(int nt){
+        nTileSize = nt;
+    }
+    void setKTIleSize(int kt){
+        kTileSize = kt;
+    }
+    void setMTIleSize(int mt){
+        mTileSize = mt;
+    }
+    int getOutNTIleSize(){
+        return outNTileSize;
+    }
+    int getOutKTIleSize(){
+        return outKTileSize;
+    }
+    int getOutMTIleSize(){
+        return outMTileSize;
+    }
+    int getNTIleSize(){
+        return nTileSize;
+    }
+    int getKTIleSize(){
+        return kTileSize;
+    }
+    int getMTIleSize(){
+        return mTileSize;
     }
 
     void SetKVCacheInCPU(bool v) {

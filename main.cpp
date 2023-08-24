@@ -7,6 +7,7 @@ struct RunConfig {
     bool printProfile = false; // 是否打印性能分析
     bool no_history = false; // 是否每轮都清空历史
     bool print_perf = false; // 是否输出性能信息
+    std::string pro_param = ""; //优化参数
 };
 
 void Usage() {
@@ -22,6 +23,7 @@ void Usage() {
     std::cout << "<--print_profiler>:           打印推理各个算子时间" << std::endl;
     std::cout << "<--no_history>:               选项打开时，每轮对话都清空历史" << std::endl;
     std::cout << "<--print_perf>:               选项打开时，输出性能信息" << std::endl;
+    std::cout << "<--pro_param>:                选项打开时，传入矩阵分块参数" << std::endl;
 }
 double GetSpan(std::chrono::high_resolution_clock::time_point time1, std::chrono::high_resolution_clock::time_point time2) {
     auto duration = std::chrono::duration_cast<std::chrono::microseconds> (time2 - time1);
@@ -58,6 +60,8 @@ void ParseArgs(int argc, char **argv, RunConfig &config, fastllm::GenerationConf
             config.no_history = true;
         } else if (sargv[i] == "--print_perf") {
             config.print_perf = true;
+        } else if (sargv[i] == "--pro_param") {
+            config.pro_param = sargv[++i];
         } else {
 			Usage();
 			exit(-1);
@@ -72,6 +76,22 @@ int main(int argc, char **argv) {
     RunConfig config;
     fastllm::GenerationConfig generationConfig;
 	ParseArgs(argc, argv, config, generationConfig);
+
+    if (config.pro_param != ""){
+        printf("1");
+        std::vector<int> numbers;
+        std::stringstream ss(config.pro_param);
+        int number;
+        while (ss >> number) {
+            numbers.push_back(number);
+        }
+        fastllm::setOutNTIleSize(numbers[0]);
+        fastllm::setOutKTIleSize(numbers[1]);
+        fastllm::setOutMTIleSize(numbers[2]);
+        fastllm::setNTIleSize(numbers[3]);
+        fastllm::setKTIleSize(numbers[4]);
+        fastllm::setMTIleSize(numbers[5]);
+    }
 
     fastllm::PrintInstructionInfo();
     fastllm::SetThreads(config.threads);

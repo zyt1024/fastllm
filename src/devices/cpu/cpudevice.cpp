@@ -840,8 +840,11 @@ namespace fastllm {
     void MultiplyInt4(uint8_t *a, uint8_t *b, int32_t *c, int n, int m, int k, int kstride,
                       int *weightSums, int *weightZeros, float *scales, float *bias, LowBitConfig *config,
                       int *inputSums) {
-        constexpr int outNTileSize = 128, outKTileSize = 512, outMTileSize = 512;
-        constexpr int nTileSize = 32, kTileSize = 256, mTileSize = 256;
+        constexpr int outNTileSize = 1024, outKTileSize = 1024, outMTileSize = 1024;
+        constexpr int nTileSize = 1024, kTileSize = 1024, mTileSize = 1024;
+        // printf("MultiplyInt4");
+        // int outNTileSize = getOutNTIleSize(), outKTileSize = getOutKTIleSize(), outMTileSize = getOutMTIleSize();
+        // int nTileSize = getNTIleSize(), kTileSize = getKTIleSize(), mTileSize = getMTIleSize();
         for (int outTileBlock = 0; outTileBlock < n; outTileBlock += outNTileSize) {
             int outTileBlockEnd = std::min(n, outTileBlock + outNTileSize);
             for (int outTileK = 0; outTileK < k; outTileK += outKTileSize) {
@@ -935,8 +938,13 @@ namespace fastllm {
     void MultiplyInt4NoZero(uint8_t *a, uint8_t *b, int32_t *c, int n, int m, int k, int kstride,
                       int *weightSums, float *weightMins, float *scales, float *bias, LowBitConfig *config,
                       int *inputSums) {
-        constexpr int outNTileSize = 4, outKTileSize = 256, outMTileSize = 256;
-        constexpr int nTileSize = 2, kTileSize = 128, mTileSize = 128;
+        //get value
+        constexpr int outNTileSize = 1024, outKTileSize = 1024, outMTileSize = 1024;
+        constexpr int nTileSize = 1024, kTileSize = 1024, mTileSize = 1024;
+        // printf("MultiplyInt4NoZero");
+        // int outNTileSize = getOutNTIleSize(), outKTileSize = getOutKTIleSize(), outMTileSize = getOutMTIleSize();
+        // int nTileSize = getNTIleSize(), kTileSize = getKTIleSize(), mTileSize = getMTIleSize();
+        // printf("%d,%d",outNTileSize,outKTileSize);
         for (int outTileBlock = 0; outTileBlock < n; outTileBlock += outNTileSize) {
             int outTileBlockEnd = std::min(n, outTileBlock + outNTileSize);
             for (int outTileK = 0; outTileK < k; outTileK += outKTileSize) {

@@ -14,7 +14,7 @@ struct BenchmarkConfig {
     std::string file; // 输入文件
     std::string output; // 输出文件，如果不设定则输出到屏幕
     bool printProfile = false; // 是否打印性能分析
-
+    bool print_perf = false; // 是否输出性能信息
 };
 
 void Usage() {
@@ -26,6 +26,7 @@ void Usage() {
     std::cout << "<-b|--batch> <args>:          batch数"      << std::endl;
     std::cout << "<-f|--file> <args>:           输入文件，文件中每行一个prompt，如果行数不足batch则用之前的prompt补充"      << std::endl;
     std::cout << "<--print_profiler>:           打印推理各个算子时间" << std::endl;
+    std::cout << "<--print_perf>:               选项打开时，输出性能信息" << std::endl;
 }
 
 void ParseArgs(int argc, char **argv, BenchmarkConfig &config) {
@@ -52,6 +53,8 @@ void ParseArgs(int argc, char **argv, BenchmarkConfig &config) {
             config.output = sargv[++i];
         } else if (sargv[i] == "--print_profiler"){
             config.printProfile = true;
+        }  else if (sargv[i] == "--print_perf") {
+            config.print_perf = true;
         } else {
             Usage();
             exit(-1);
