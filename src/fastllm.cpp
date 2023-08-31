@@ -46,8 +46,8 @@ namespace fastllm {
     static bool kvCacheInCPU = false;
 
     //set para
-    int outNTileSize = 4, outKTileSize = 256, outMTileSize = 256;
-    int nTileSize = 2, kTileSize = 128, mTileSize = 128;
+    int outNTileSize = 2048, outKTileSize = 2048, outMTileSize = 2048;
+    int nTileSize = 1024, kTileSize = 1024, mTileSize = 1024;
 
     void PrintInstructionInfo() {
         std::string avx = "OFF", avx2 = "OFF", aarch64 = "OFF", neonFp16 = "OFF", neonDot = "OFF";

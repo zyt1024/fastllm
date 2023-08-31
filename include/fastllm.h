@@ -153,14 +153,14 @@ namespace fastllm {
                 zeroPoint = static_cast<uint8_t>(std::round(initial_zero_point));
             }
 
-            if (type == 1) { // 如果不需要zero_point, 则this->min = 0
+            if (type == 1) { // 如果不需要zero_point, 为什么要加-this->scale * zeroPoint;
                 this->min = -this->scale * zeroPoint;
                 return;
             }
         }
 
         uint8_t quantization(const float &realNumber) const {
-            if (type == 0) { // 0是有zero_points的
+            if (type == 0) { // 0是有zero_points的保证量化后的值在(0,max)范围之内
                 return (uint8_t) (std::min((double) ((1 << bit) - 1),
                                            std::max(realNumber / scale + zeroPoint + 0.5, 0.0)));
             } else {
@@ -172,7 +172,7 @@ namespace fastllm {
             if (type == 0) {
                 return (scale * ((float) qNumber - (float) zeroPoint));
             } else {
-                return min + scale * qNumber;
+                return min + scale * qNumber; // scale*qNumber - scale*zeroPoint = scale*(qNumber - zeroPoint) 那0和1没有任何区别了
             }
         }
     };
