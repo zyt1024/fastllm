@@ -35,6 +35,19 @@ namespace fastllm {
     bool GetKVCacheInCPU();
     ThreadPool *GetPool();
 
+    void setOutNTIleSize(int on);
+    void setOutKTIleSize(int ok);
+    void setOutMTIleSize(int om);
+    void setNTIleSize(int nt);
+    void setKTIleSize(int kt);
+    void setMTIleSize(int mt);
+    int getOutNTIleSize();
+    int getOutKTIleSize();
+    int getOutMTIleSize();
+    int getNTIleSize();
+    int getKTIleSize();
+    int getMTIleSize();
+    
     struct GenerationConfig {
         int output_token_limit = -1; // 最多输出多少, <= 0代表无限制
         int last_n = 64; // 末尾last_n个token计入重复惩罚

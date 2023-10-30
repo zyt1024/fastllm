@@ -956,130 +956,190 @@ namespace fastllm {
     void MultiplyInt4(uint8_t *a, uint8_t *b, int32_t *c, int n, int m, int k, int kstride,
                       int *weightSums, int *weightZeros, float *scales, float *bias, LowBitConfig *config,
                       int *inputSums) {
-        int block = 0;
-        for (; block < n; block++) {
-            uint32_t inputSum = inputSums[block];
-            uint8_t *weightWalk = b;
-            uint8_t *inputStart = a + block * m;
+        constexpr int outNTileSize = 1024, outKTileSize = 1024, outMTileSize = 1024;
+        constexpr int nTileSize = 1024, kTileSize = 1024, mTileSize = 1024;
+        // printf("MultiplyInt4");
+        // int outNTileSize = getOutNTIleSize(), outKTileSize = getOutKTIleSize(), outMTileSize = getOutMTIleSize();
+        // int nTileSize = getNTIleSize(), kTileSize = getKTIleSize(), mTileSize = getMTIleSize();
 
-            for (int i = 0; i < k; i++) {
-                int value = 0;
-                uint8_t *inputWalk = inputStart;
-                int j = 0;
-#ifdef __ARM_FEATURE_DOTPROD
-                uint8x8_t maskHigh = vdup_n_u8(0xF0);
-                uint8x8_t maskLow = vdup_n_u8(0xF);
-                uint32x2_t sum0 = {0, 0};
+        for (int outTileBlock = 0; outTileBlock < n; outTileBlock += outNTileSize) {
+            int outTileBlockEnd = std::min(n, outTileBlock + outNTileSize);
+            for (int outTileK = 0; outTileK < k; outTileK += outKTileSize) {
+                int outTileKEnd = std::min(k, outTileK + outKTileSize);
+                for (int outTileM = 0; outTileM < m; outTileM += outMTileSize) {
+                    int outTileMEnd = std::min(m, outTileM + outMTileSize);
+                    for (int tileBlock = outTileBlock; tileBlock < outTileBlockEnd; tileBlock += nTileSize) {
+                        int tileBlockEnd = std::min(outTileBlockEnd, tileBlock + nTileSize);
+                        for (int tileK = outTileK; tileK < outTileKEnd; tileK += kTileSize) {
+                            int tileKEnd = std::min(outTileKEnd, tileK + kTileSize);
+                            for (int tileM = outTileM; tileM < outTileMEnd; tileM += mTileSize) {
+                                int tileMEnd = std::min(outTileMEnd, tileM + mTileSize);
+                                for (int block = tileBlock; block < tileBlockEnd; block++) {
+                                    uint32_t inputSum = inputSums[block];
+                                    uint8_t *weightWalk = b;
+                                    uint8_t *inputStart = a + block * m;
 
-                for (; j + 15 < m; j += 16) {
-                    uint8x8_t ori = vld1_u8(weightWalk + (i * m + j) / 2);
-                    uint8x8x2_t in = vld2_u8(inputWalk + j);
-                    uint8x8_t va = vand_u8(ori, maskLow);
-                    uint8x8_t vb = vshr_n_u8(vand_u8(ori, maskHigh), 4);
-                    sum0 = vdot_u32(sum0, va, in.val[1]);
-                    sum0 = vdot_u32(sum0, vb, in.val[0]);
-                }
-                value += sum0[0] + sum0[1];
-#elif defined(__aarch64__)
-                uint8x8_t maskHigh = vdup_n_u8(0xF0);
-                uint8x8_t maskLow = vdup_n_u8(0xF);
-                uint32x4_t sum0 = {0, 0, 0, 0};
+                                    for (int i = tileK; i < tileKEnd; i++) {
+                                        int value = 0;
+                                        uint8_t *inputWalk = inputStart;
+                                        int j = tileM;
+                                    #ifdef __ARM_FEATURE_DOTPROD
+                                        uint8x8_t maskHigh = vdup_n_u8(0xF0);
+                                        uint8x8_t maskLow = vdup_n_u8(0xF);
+                                        uint32x2_t sum0 = {0, 0};
 
-                for (; j + 15 < m; j += 16) {
-                    uint8x8_t ori = vld1_u8(weightWalk + (i * m + j) / 2);
-                    uint8x8x2_t in = vld2_u8(inputWalk + j);
-                    uint8x8_t va = vand_u8(ori, maskLow);
-                    uint8x8_t vb = vshr_n_u8(vand_u8(ori, maskHigh), 4);
-                    sum0 = vpadalq_u16(sum0, vmull_u8(va, in.val[1]));
-                    sum0 = vpadalq_u16(sum0, vmull_u8(vb, in.val[0]));
-                }
-                value += sum0[0] + sum0[1] + sum0[2] + sum0[3];
-#elif defined(__AVX2__)
-                value += DotU4U8(weightWalk + i * m / 2, inputWalk, m);
-                j += m;
-#endif
-                for (; j + 1 < m; j += 2) {
-                    int id = (i * m + j) / 2;
-                    value += (weightWalk[id] >> 4) * inputWalk[j];
-                    value += (weightWalk[id] & 0xF) * inputWalk[j + 1];
-                }
+                                        #pragma unroll(4)
+                                        for (; j + 15 < tileMEnd; j += 16) {
+                                            uint8x8_t ori = vld1_u8(weightWalk + (i * m + j) / 2);
+                                            uint8x8x2_t in = vld2_u8(inputWalk + j);
+                                            uint8x8_t va = vand_u8(ori, maskLow);
+                                            uint8x8_t vb = vshr_n_u8(vand_u8(ori, maskHigh), 4);
+                                            sum0 = vdot_u32(sum0, va, in.val[1]);
+                                            sum0 = vdot_u32(sum0, vb, in.val[0]);
+                                        }
+                                        value += sum0[0] + sum0[1];
+                                    #elif defined(__aarch64__)
+                                        uint8x8_t maskHigh = vdup_n_u8(0xF0);
+                                        uint8x8_t maskLow = vdup_n_u8(0xF);
+                                        uint32x4_t sum0 = {0, 0, 0, 0};
 
-                for (; j < m; j++) {
-                    int id = (i * m + j) / 2;
-                    if ((i * m + j) % 2) {
-                        value += (weightWalk[id] & 0xF) * inputWalk[j];
-                    } else {
-                        value += (weightWalk[id] >> 4) * inputWalk[j];
+                                        #pragma unroll(4)
+                                        for (; j + 15 < tileMEnd; j += 16) {
+                                            uint8x8_t ori = vld1_u8(weightWalk + (i * m + j) / 2);
+                                            uint8x8x2_t in = vld2_u8(inputWalk + j);
+                                            uint8x8_t va = vand_u8(ori, maskLow);
+                                            uint8x8_t vb = vshr_n_u8(vand_u8(ori, maskHigh), 4);
+                                            sum0 = vpadalq_u16(sum0, vmull_u8(va, in.val[1]));
+                                            sum0 = vpadalq_u16(sum0, vmull_u8(vb, in.val[0]));
+                                        }
+                                        value += sum0[0] + sum0[1] + sum0[2] + sum0[3];
+                                    #elif defined(__AVX__)
+                                        value += DotU4U8(weightWalk + (i * m + j) / 2, inputWalk + j, tileMEnd - tileM);
+                                        j += tileMEnd - tileM;
+                                    #endif
+                                        for (; j + 1 < tileMEnd; j += 2) {
+                                            int id = (i * m + j) / 2;
+                                            value += (weightWalk[id] >> 4) * inputWalk[j];
+                                            value += (weightWalk[id] & 0xF) * inputWalk[j + 1];
+                                        }
+                                        for (; j < tileMEnd; j++) {
+                                            int id = (i * m + j) / 2;
+                                            if ((i * m + j) % 2) {
+                                                value += (weightWalk[id] & 0xF) * inputWalk[j];
+                                            } else {
+                                                value += (weightWalk[id] >> 4) * inputWalk[j];
+                                            }
+                                        }
+                                        c[block * kstride + i] += value;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-
-                value -= weightSums[i] * config[block].zeroPoint;
-                value -= inputSum * weightZeros[i];
-                value += (int)config[block].zeroPoint * weightZeros[i] * m;
-
-                ((float*)c)[block * kstride + i] = scales[i] * config[block].scale * value +
-                                                   (bias == nullptr ? 0.0 : bias[i]);
+                for (int block = outTileBlock; block < outTileBlockEnd; block++) {
+                    for (int i = outTileK; i < outTileKEnd; i++) {
+                        ((float*)c)[block * kstride + i] = c[block * kstride + i];
+                        ((float*)c)[block * kstride + i] -= weightSums[i] * config[block].zeroPoint;
+                        ((float*)c)[block * kstride + i] -= inputSums[block] * weightZeros[i];
+                        ((float*)c)[block * kstride + i] += (int)config[block].zeroPoint * weightZeros[i]* m;
+                        ((float*)c)[block * kstride + i] *= scales[i] * config[block].scale;
+                        ((float*)c)[block * kstride + i] += bias == nullptr ? 0.0 : bias[i];
+                    }
+                }
             }
         }
     }
+    
 
     //a = [n, m], b = [k, m], c = aT(b') = [n, k]
     void MultiplyInt4NoZero(uint8_t *a, uint8_t *b, int32_t *c, int n, int m, int k, int kstride,
                       int *weightSums, float *weightMins, float *scales, float *bias, LowBitConfig *config,
                       int *inputSums) {
-        int block = 0;
-        for (; block < n; block++) {
-            uint32_t inputSum = inputSums[block];
-            uint8_t *weightWalk = b;
-            uint8_t *inputStart = a + block * m;
+        //get value
+        constexpr int outNTileSize = 1024, outKTileSize = 1024, outMTileSize = 1024;
+        constexpr int nTileSize = 1024, kTileSize = 1024, mTileSize = 1024;
+        // printf("MultiplyInt4NoZero");
+        // int outNTileSize = getOutNTIleSize(), outKTileSize = getOutKTIleSize(), outMTileSize = getOutMTIleSize();
+        // int nTileSize = getNTIleSize(), kTileSize = getKTIleSize(), mTileSize = getMTIleSize();
+        // printf("%d,%d",outNTileSize,outKTileSize);
+        for (int outTileBlock = 0; outTileBlock < n; outTileBlock += outNTileSize) {
+            int outTileBlockEnd = std::min(n, outTileBlock + outNTileSize);
+            for (int outTileK = 0; outTileK < k; outTileK += outKTileSize) {
+                int outTileKEnd = std::min(k, outTileK + outKTileSize);
+                for (int outTileM = 0; outTileM < m; outTileM += outMTileSize) {
+                    int outTileMEnd = std::min(m, outTileM + outMTileSize);
+                    for (int tileBlock = outTileBlock; tileBlock < outTileBlockEnd; tileBlock += nTileSize) {
+                        int tileBlockEnd = std::min(outTileBlockEnd, tileBlock + nTileSize);
+                        for (int tileK = outTileK; tileK < outTileKEnd; tileK += kTileSize) {
+                            int tileKEnd = std::min(outTileKEnd, tileK + kTileSize);
+                            for (int tileM = outTileM; tileM < outTileMEnd; tileM += mTileSize) {
+                                int tileMEnd = std::min(outTileMEnd, tileM + mTileSize);
+                                for (int block = tileBlock; block < tileBlockEnd; block++) {
+                                    uint32_t inputSum = inputSums[block];
+                                    uint8_t *weightWalk = b;
+                                    uint8_t *inputStart = a + block * m;
 
-            for (int i = 0; i < k; i++) {
-                int value = 0;
-                uint8_t *inputWalk = inputStart;
-                int j = 0;
-#ifdef __ARM_FEATURE_DOTPROD
-                uint8x8_t maskHigh = vdup_n_u8(0xF0);
-                uint8x8_t maskLow = vdup_n_u8(0xF);
-                uint32x2_t sum0 = {0, 0};
+                                    for (int i = tileK; i < tileKEnd; i++) {
+                                        int value = 0;
+                                        uint8_t *inputWalk = inputStart;
+                                        int j = tileM;
+                                    #ifdef __ARM_FEATURE_DOTPROD
+                                        uint8x8_t maskHigh = vdup_n_u8(0xF0);
+                                        uint8x8_t maskLow = vdup_n_u8(0xF);
+                                        uint32x2_t sum0 = {0, 0};
 
-                for (; j + 15 < m; j += 16) {
-                    uint8x8_t ori = vld1_u8(weightWalk + (i * m + j) / 2);
-                    uint8x8x2_t in = vld2_u8(inputWalk + j);
-                    uint8x8_t va = vand_u8(ori, maskLow);
-                    uint8x8_t vb = vshr_n_u8(vand_u8(ori, maskHigh), 4);
-                    sum0 = vdot_u32(sum0, va, in.val[1]);
-                    sum0 = vdot_u32(sum0, vb, in.val[0]);
+                                        #pragma unroll(4)
+                                        for (; j + 15 < tileMEnd; j += 16) {
+                                            uint8x8_t ori = vld1_u8(weightWalk + (i * m + j) / 2);
+                                            uint8x8x2_t in = vld2_u8(inputWalk + j);
+                                            uint8x8_t va = vand_u8(ori, maskLow);
+                                            uint8x8_t vb = vshr_n_u8(vand_u8(ori, maskHigh), 4);
+                                            sum0 = vdot_u32(sum0, va, in.val[1]);
+                                            sum0 = vdot_u32(sum0, vb, in.val[0]);
+                                        }
+                                        value += sum0[0] + sum0[1];
+                                    #elif defined(__aarch64__)
+                                        uint8x8_t maskHigh = vdup_n_u8(0xF0);
+                                        uint8x8_t maskLow = vdup_n_u8(0xF);
+                                        uint32x4_t sum0 = {0, 0, 0, 0};
+
+                                        #pragma unroll(4)
+                                        for (; j + 15 < tileMEnd; j += 16) {
+                                            uint8x8_t ori = vld1_u8(weightWalk + (i * m + j) / 2);
+                                            uint8x8x2_t in = vld2_u8(inputWalk + j);
+                                            uint8x8_t va = vand_u8(ori, maskLow);
+                                            uint8x8_t vb = vshr_n_u8(vand_u8(ori, maskHigh), 4);
+                                            sum0 = vpadalq_u16(sum0, vmull_u8(va, in.val[1]));
+                                            sum0 = vpadalq_u16(sum0, vmull_u8(vb, in.val[0]));
+                                        }
+                                        value += sum0[0] + sum0[1] + sum0[2] + sum0[3];
+                                    #elif defined(__AVX__)
+                                        value += DotU4U8(weightWalk + (i * m + j) / 2, inputWalk + j, tileMEnd - tileM);
+                                        j += tileMEnd - tileM;
+                                    #endif
+                                        for (; j + 1 < tileMEnd; j += 2) {
+                                            int id = (i * m + j) / 2;
+                                            value += (weightWalk[id] >> 4) * inputWalk[j];
+                                            value += (weightWalk[id] & 0xF) * inputWalk[j + 1];
+                                        }
+
+                                        c[block * kstride + i] += value;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-                value += sum0[0] + sum0[1];
-#elif defined(__aarch64__)
-                uint8x8_t maskHigh = vdup_n_u8(0xF0);
-                uint8x8_t maskLow = vdup_n_u8(0xF);
-                uint32x4_t sum0 = {0, 0, 0, 0};
-
-                for (; j + 15 < m; j += 16) {
-                    uint8x8_t ori = vld1_u8(weightWalk + (i * m + j) / 2);
-                    uint8x8x2_t in = vld2_u8(inputWalk + j);
-                    uint8x8_t va = vand_u8(ori, maskLow);
-                    uint8x8_t vb = vshr_n_u8(vand_u8(ori, maskHigh), 4);
-                    sum0 = vpadalq_u16(sum0, vmull_u8(va, in.val[1]));
-                    sum0 = vpadalq_u16(sum0, vmull_u8(vb, in.val[0]));
+                for (int block = outTileBlock; block < outTileBlockEnd; block++) {
+                    for (int i = outTileK; i < outTileKEnd; i++) {
+                        ((float*)c)[block * kstride + i] = c[block * kstride + i];
+                        ((float*)c)[block * kstride + i] -= weightSums[i] * config[block].zeroPoint;
+                        ((float*)c)[block * kstride + i] *= scales[i] * config[block].scale;
+                        ((float*)c)[block * kstride + i] += weightMins[i] * ((float)inputSums[block] - (int)config[block].zeroPoint * m) * config[block].scale;
+                        ((float*)c)[block * kstride + i] += bias == nullptr ? 0.0 : bias[i];
+                    }
                 }
-                value += sum0[0] + sum0[1] + sum0[2] + sum0[3];
-#elif defined(__AVX2__)
-                value += DotU4U8(weightWalk + i * m / 2, inputWalk, m);
-                j += m;
-#endif
-
-                for (; j + 1 < m; j += 2) {
-                    int id = (i * m + j) / 2;
-                    value += (weightWalk[id] >> 4) * inputWalk[j];
-                    value += (weightWalk[id] & 0xF) * inputWalk[j + 1];
-                }
-
-                value -= weightSums[i] * config[block].zeroPoint;
-                ((float*)c)[block * kstride + i] = scales[i] * config[block].scale * value +
-                        weightMins[i] * ((float)inputSum - (int)config[block].zeroPoint * m) * config[block].scale +
-                        (bias == nullptr ? 0.0 : bias[i]);
             }
         }
     }

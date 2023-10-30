@@ -1,4 +1,5 @@
 ﻿#include "model.h"
+#include <sstream>
 
 struct RunConfig {
 	std::string path = "chatglm-6b-int4.bin"; // 模型文件路径
@@ -6,6 +7,7 @@ struct RunConfig {
 	bool lowMemMode = false; // 是否使用低内存模式
     bool no_history = false; // 是否每轮都清空历史
     bool print_perf = false; // 是否输出性能信息
+    std::string pro_param = ""; //优化参数
 };
 
 void Usage() {
@@ -20,8 +22,9 @@ void Usage() {
     std::cout << "<--repeat_penalty> <args>:    采样参数重复惩罚" << std::endl;
     std::cout << "<--no_history>:               选项打开时，每轮对话都清空历史" << std::endl;
     std::cout << "<--print_perf>:               选项打开时，输出性能信息" << std::endl;
+    std::cout << "<--pro_param>:                选项打开时，传入矩阵分块参数" << std::endl;
 }
-double GetSpan(std::chrono::high_resolution_clock::time_point time1, std::chrono::high_resolution_clock::time_point time2) {
+static double GetSpan(std::chrono::high_resolution_clock::time_point time1, std::chrono::high_resolution_clock::time_point time2) {
     auto duration = std::chrono::duration_cast<std::chrono::microseconds> (time2 - time1);
     return double(duration.count()) * std::chrono::microseconds::period::num / std::chrono::microseconds::period::den;
 };
@@ -55,6 +58,8 @@ void ParseArgs(int argc, char **argv, RunConfig &config, fastllm::GenerationConf
             config.no_history = true;
         } else if (sargv[i] == "--print_perf") {
             config.print_perf = true;
+        } else if (sargv[i] == "--pro_param") {
+            config.pro_param = sargv[++i];
         } else {
 			Usage();
 			exit(-1);
@@ -69,6 +74,22 @@ int main(int argc, char **argv) {
     RunConfig config;
     fastllm::GenerationConfig generationConfig;
 	ParseArgs(argc, argv, config, generationConfig);
+
+    if (config.pro_param != ""){
+        printf("1");
+        std::vector<int> numbers;
+        std::stringstream ss(config.pro_param);
+        int number;
+        while (ss >> number) {
+            numbers.push_back(number);
+        }
+        fastllm::setOutNTIleSize(numbers[0]);
+        fastllm::setOutKTIleSize(numbers[1]);
+        fastllm::setOutMTIleSize(numbers[2]);
+        fastllm::setNTIleSize(numbers[3]);
+        fastllm::setKTIleSize(numbers[4]);
+        fastllm::setMTIleSize(numbers[5]);
+    }
 
     fastllm::PrintInstructionInfo();
     fastllm::SetThreads(config.threads);
