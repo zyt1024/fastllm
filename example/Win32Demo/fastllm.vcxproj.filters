@@ -57,10 +57,16 @@
     <ClInclude Include="..\..\include\models\factoryllm.h">
       <Filter>头文件\models</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\models\glm.h">
+      <Filter>头文件\models</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\include\models\llama.h">
       <Filter>头文件\models</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\models\moss.h">
+      <Filter>头文件\models</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\models\qwen.h">
       <Filter>头文件\models</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\devices\cpu\cpudevice.h">
@@ -98,10 +104,16 @@
     <ClCompile Include="..\..\src\models\chatglm.cpp">
       <Filter>源文件\models</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\models\glm.cpp">
+      <Filter>源文件\models</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\models\llama.cpp">
       <Filter>源文件\models</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\models\moss.cpp">
+      <Filter>源文件\models</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\models\qwen.cpp">
       <Filter>源文件\models</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\devices\cpu\cpudevice.cpp">

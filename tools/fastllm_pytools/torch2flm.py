@@ -39,10 +39,18 @@ def write_int8(fo, v):
     fo.write(v.data)
 
 def write_int4(fo, v):
-    c_min = np.expand_dims(-np.abs(v).max(axis = -1), -1)
-    c_max = np.expand_dims(np.abs(v).max(axis = -1), -1)
-    c_scale = c_max / 7.0
-    c_min = c_scale * -8.0
+    # c_min = np.expand_dims(-np.abs(v).max(axis = -1), -1)
+    # c_max = np.expand_dims(np.abs(v).max(axis = -1), -1)
+    # c_scale = c_max / 7.0
+    # c_min = c_scale * -8.0
+
+    c_min = np.expand_dims(v.min(axis = -1), -1)
+    c_max = np.expand_dims(v.max(axis = -1), -1)
+    c_scale = (c_max - c_min) / 15.0
+    c_zero = np.round(0.0 - c_min / c_scale)
+    c_zero = c_zero.clip(0, 15)
+    c_min = -c_scale * c_zero
+
     v = (v - c_min) / c_scale
     v = (v + 0.5).astype(np.int8).clip(0, 15).astype(np.uint8)
     v = v[:, 0::2] * 16 + v[:, 1::2]
@@ -91,7 +99,13 @@ def tofile(exportPath,
         # Baichuan 2代
         modelInfo["use_alibi"] = "1"
         modelInfo["pre_prompt"] = ""
-        modelInfo["user_role"] = ("<FLM_FIX_TOKEN_" + str(model.generation_config.user_token_id) + "> ") if hasattr(model.generation_config, "user_token_id") else "";
+        modelInfo["user_role"] = ("<FLM_FIX_TOKEN_" + str(model.generation_config.user_token_id) + ">") if hasattr(model.generation_config, "user_token_id") else "";
+        modelInfo["bot_role"] = ("<FLM_FIX_TOKEN_" + str(model.generation_config.assistant_token_id) + ">") if hasattr(model.generation_config, "assistant_token_id") else "";
+        modelInfo["history_sep"] = ""
+    if (modelInfo["model_type"] == "baichuan" and modelInfo["vocab_size"] == 125696):
+        # Baichuan 2代 7B
+        modelInfo["pre_prompt"] = ""
+        modelInfo["user_role"] = ("<FLM_FIX_TOKEN_" + str(model.generation_config.user_token_id) + ">") if hasattr(model.generation_config, "user_token_id") else "";
         modelInfo["bot_role"] = ("<FLM_FIX_TOKEN_" + str(model.generation_config.assistant_token_id) + ">") if hasattr(model.generation_config, "assistant_token_id") else "";
         modelInfo["history_sep"] = ""
     if modelInfo["model_type"] == "qwen":
@@ -101,9 +115,21 @@ def tofile(exportPath,
 
     modelInfo["tokenizer_use_score"] = "1" # 分词带分数
 
+    if hasattr(model, "peft_config"):
+        adapter_size = len(model.peft_config)
+        modelInfo["peft_size"] = adapter_size
+
     fo.write(struct.pack('i', len(modelInfo)))
     for it in modelInfo.keys():
         writeKeyValue(fo, str(it), str(modelInfo[it]))
+
+    if hasattr(model, "peft_config"):
+        for adapter_name in model.peft_config.keys():
+            adapter_dict = model.peft_config[adapter_name].__dict__
+            writeString(fo, adapter_name)
+            fo.write(struct.pack('i', len(adapter_dict)))
+            for it in adapter_dict.keys():
+                writeKeyValue(fo, str(it), str(adapter_dict[it]))
 
     # 1. vocab
     if (tokenizer):
@@ -128,10 +154,10 @@ def tofile(exportPath,
             for v in vocab.keys():
                 if (modelInfo['model_type'] == "qwen"):
                     s = v
+                elif (modelInfo["model_type"] == "moss"):
+                    s = [(ord(c) if c not in tokenizer.byte_decoder else tokenizer.byte_decoder[c]) for c in v]
                 else:
                     s = v.encode()
-                if (modelInfo["model_type"] == "moss"):
-                    s = [(ord(c) if c not in tokenizer.byte_decoder else tokenizer.byte_decoder[c]) for c in v]
                 fo.write(struct.pack('i', len(s)))
                 for c in s:
                     fo.write(struct.pack('i', c))
@@ -166,8 +192,14 @@ def tofile(exportPath,
                 ori_np_data_type = np.float16
 
         cur = dict[key].numpy().astype(ori_np_data_type)
-        fo.write(struct.pack('i', len(key)))
-        fo.write(key.encode())
+        
+        if hasattr(model, "peft_config"):
+            weight_name = key.replace('base_model.model.', '')
+            fo.write(struct.pack('i', len(weight_name)))
+            fo.write(weight_name.encode())
+        else:
+            fo.write(struct.pack('i', len(key)))
+            fo.write(key.encode())
         fo.write(struct.pack('i', len(cur.shape)))
         for i in cur.shape:
             fo.write(struct.pack('i', i))

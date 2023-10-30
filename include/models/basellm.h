@@ -46,7 +46,9 @@ namespace fastllm {
     public:
         basellm() {};
 
-        ~basellm() {};
+        ~basellm() {
+            this->weight.ReleaseWeight();
+        };
 
         virtual void LoadFromFile(const std::string &fileName); // 从文件读取
 
@@ -119,6 +121,10 @@ namespace fastllm {
 
         virtual std::string MakeHistory(const std::string &history, int round, const std::string &input, const std::string &output) = 0; // 根据当前回复更新history
 
+        virtual void SetAdapter(const std::string &name);
+
+        virtual void DisableAdapter();
+
         std::string model_type;
 
         std::string pre_prompt; // 最初对话的提示语
@@ -146,5 +152,9 @@ namespace fastllm {
         std::mutex mainLoopLocker, dictLocker;
 
         std::map <std::string, int> deviceMap;
+
+        std::string adapterName;
+
+        int tokensLimit = -1;
     };
 }

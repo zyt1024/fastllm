@@ -48,6 +48,9 @@ model = AutoModel.from_pretrained("THUDM/chatglm2-6b", trust_remote_code = True)
 # 目前from_hf接口只能接受原始模型，或者ChatGLM的int4, int8量化模型，暂时不能转换其它量化模型
 from fastllm_pytools import llm
 model = llm.from_hf(model, tokenizer, dtype = "float16") # dtype支持 "float16", "int8", "int4"
+
+# 注释掉这一行model.eval()
+#model = model.eval()
 ```
 
 model支持了ChatGLM的API函数chat, stream_chat，因此ChatGLM的demo程序无需改动其他代码即可运行
@@ -71,6 +74,39 @@ new_model = llm.model("model.flm"); # 导入fastllm模型
 ```
 
 注: 该功能处于测试阶段，目前仅验证了ChatGLM、ChatGLM2模型可以通过2行代码加速
+
+## PEFT支持(测试中，目前仅支持ChatGLM + LoRA)
+
+使用[🤗PEFT](https://huggingface.co/docs/peft/index)可以方便地运行finetune过的大模型，你可以使用如下的方式让你的PEFT模型使用fastllm加速：
+
+```python
+import sys
+from peft import PeftModel
+from transformers import AutoModel, AutoTokenizer
+sys.path.append('..')
+model = AutoModel.from_pretrained("THUDM/chatglm-6b", device_map='cpu', trust_remote_code=True)
+model = PeftModel.from_pretrained(model, "path/to/your/own/adapter") # 这里使用你自己的peft adapter
+model = model.eval()
+tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm-6b", trust_remote_code=True)
+
+# 如果模型中存在active_adapter，那么在fastllm模型中，这个adapter也会被默认启用
+from fastllm_pytools import llm
+model = llm.from_hf(model, tokenizer, dtype = "float16") # dtype支持 "float16", "int8", "int4"
+```
+
+接下来，你就可以像使用普通的模型一样(例如调用chat，stream_chat函数)
+
+你也可以更换PEFT模型所使用的的adapter：
+
+```python
+model.set_adapter('your adapter name')
+```
+
+或者关闭PEFT，使用原本的预训练模型：
+
+```python
+model.disable_adapter()
+```
 
 ## 推理速度
 
@@ -298,6 +334,18 @@ cd build
 python3 tools/baichuan2flm.py baichuan-13b-fp16.flm float16 #导出float16模型
 python3 tools/baichuan2flm.py baichuan-13b-int8.flm int8 #导出int8模型
 python3 tools/baichuan2flm.py baichuan-13b-int4.flm int4 #导出int4模型
+```
+
+### baichuan2模型导出 (默认脚本导出baichuan2-7b-chat模型)
+
+``` sh
+# 需要先安装baichuan2环境
+# 如果使用自己finetune的模型需要修改baichuan2_2flm.py文件中创建tokenizer, model的代码
+# 根据所需的精度，导出相应的模型
+cd build
+python3 tools/baichuan2_2flm.py baichuan2-7b-fp16.flm float16 #导出float16模型
+python3 tools/baichuan2_2flm.py baichuan2-7b-int8.flm int8 #导出int8模型
+python3 tools/baichuan2_2flm.py baichuan2-7b-int4.flm int4 #导出int4模型
 ```
 
 ### MOSS模型导出
