@@ -25,7 +25,7 @@ void Usage() {
     std::cout << "<--print_perf>:               选项打开时，输出性能信息" << std::endl;
     std::cout << "<--pro_param>:                选项打开时，传入矩阵分块参数" << std::endl;
 }
-double GetSpan(std::chrono::high_resolution_clock::time_point time1, std::chrono::high_resolution_clock::time_point time2) {
+double GetSpan_main(std::chrono::high_resolution_clock::time_point time1, std::chrono::high_resolution_clock::time_point time2) {
     auto duration = std::chrono::duration_cast<std::chrono::microseconds> (time2 - time1);
     return double(duration.count()) * std::chrono::microseconds::period::num / std::chrono::microseconds::period::den;
 };
@@ -120,7 +120,10 @@ int main(int argc, char **argv) {
         static auto ts_1 = ts_0;
         static auto ts_2 = ts_0;    
         auto model_input = model->MakeInput(history, round, input);    
-        std::string ret = model->Response(model_input, [](int index, const char* content) {
+        printf("===============================\nmodel_input=%s \n",model_input.c_str());
+        printf("===============================\n");
+        std::string ret = model->Response(model->MakeInput(history, round, input), [](int index, const char* content) {
+            // printf("index=%d\n",index);
             if (index == 0) {
                 ts_1 = std::chrono::high_resolution_clock::now();
                 printf("%s:%s", modelType.c_str(), content);
@@ -139,22 +142,23 @@ int main(int argc, char **argv) {
             fastllm::PrintProfiler();
             fastllm::ClearProfiler();
         }
-        history = model->MakeHistory(history, round, input, ret);
-        round++;
-        if (config.print_perf) {
-            auto num_prefilling_tokens = model->weight.tokenizer.Encode(model_input).Count(0);
-            auto num_generated_tokens = model->weight.tokenizer.Encode(ret).Count(0);
-            auto prefilling_secs = GetSpan(ts_0, ts_1);
-            auto decoding_secs = GetSpan(ts_1, ts_2);
-            printf(
-                "[ pref #%ld, %f sec, %f t/s | dec #%ld, %f sec, %f t/s]\n",
-                num_prefilling_tokens, prefilling_secs, num_prefilling_tokens / prefilling_secs,
-                num_generated_tokens, decoding_secs, num_generated_tokens / decoding_secs);
-        }
+        
         if (!config.no_history) {
             history = model->MakeHistory(history, round, input, ret);
             round++;
         }
+
+        if (config.print_perf) {
+            auto num_prefilling_tokens = model->weight.tokenizer.Encode(model_input).Count(0);
+            auto num_generated_tokens = model->weight.tokenizer.Encode(ret).Count(0);
+            auto prefilling_secs = GetSpan_main(ts_0, ts_1);
+            auto decoding_secs = GetSpan_main(ts_1, ts_2);
+            printf(
+                "[round %d] [ pref #%ld, %f sec, %f t/s | dec #%ld, %f sec, %f t/s]\n",round,
+                num_prefilling_tokens, prefilling_secs, num_prefilling_tokens / prefilling_secs,
+                num_generated_tokens, decoding_secs, num_generated_tokens / decoding_secs);
+        }
+
     }
 
 	return 0;

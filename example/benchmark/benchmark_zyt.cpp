@@ -34,7 +34,7 @@ void Usage() {
     std::cout << "<--exe_num>:                  选项打开时，输入该分块参数的执行次数" << std::endl;
 }
 
-double GetSpan(std::chrono::high_resolution_clock::time_point time1, std::chrono::high_resolution_clock::time_point time2) {
+double GetSpan_main(std::chrono::high_resolution_clock::time_point time1, std::chrono::high_resolution_clock::time_point time2) {
     auto duration = std::chrono::duration_cast<std::chrono::microseconds> (time2 - time1);
     return double(duration.count()) * std::chrono::microseconds::period::num / std::chrono::microseconds::period::den;
 };
@@ -145,14 +145,14 @@ int main(int argc, char **argv) {
         static auto ts_2 = ts_0;    
         // static auto promptTime = st;
 
-        std::string ret = model->Response(model_input,[](int index, const char* content) {
+        std::string ret = model->Response(model_input, [](int index, const char* content) {
                 if (index == 0) {
                     ts_1 = std::chrono::high_resolution_clock::now();
-                    printf("%s:%s", "chatGLM2", content);
+                    // printf("%s:%s", "chatGLM2", content);
                     fflush(stdout);
                 }
                 if (index > 0) {
-                    printf("%s", content);
+                    // printf("%s", content);
                     fflush(stdout);
                 }
                 if (index == -1) {
@@ -161,21 +161,21 @@ int main(int argc, char **argv) {
                 }
         }, generationConfig);
 
-        if (config.output != "") {
+        if (config.output != "") { // 输出目录
             FILE *fo = fopen(config.output.c_str(), "w");
             for (int i = 0; i < outputs.size(); i++) {
                 fprintf(fo, "[ user: \"%s\", model: \"%s\"]\n", inputs[i].c_str(), outputs[i].c_str());
             }
             fclose(fo);
         } else {
-            for (int i = 0; i < outputs.size(); i++) {
-                printf("[ user: \"%s\", model: \"%s\"]\n", inputs[i].c_str(), outputs[i].c_str());
-            }
+            // for (int i = 0; i < outputs.size(); i++) {
+                printf("[ user: \"%s\", model: \"%s\"]\n", model_input.c_str(), ret.c_str());
+            // }
         }
         auto num_prefilling_tokens = model->weight.tokenizer.Encode(model_input).Count(0);
         auto num_generated_tokens = model->weight.tokenizer.Encode(ret).Count(0);
-        auto prefilling_secs = GetSpan(ts_0, ts_1);
-        auto decoding_secs = GetSpan(ts_1, ts_2);
+        auto prefilling_secs = GetSpan_main(ts_0, ts_1);
+        auto decoding_secs = GetSpan_main(ts_1, ts_2);
         num_prefilling_tokens_all += num_prefilling_tokens;
         num_generated_tokens_all += num_generated_tokens;
         prefilling_secs_all += prefilling_secs;

@@ -32,6 +32,8 @@ namespace fastllm {
         this->rope = rope;
         sin.resize(max_positions);
         cos.resize(max_positions);
+        // 在这应该判断什么时候用3B，什么时候用6B
+
         std::vector <float> invFreq;
         for (int i = 0; i < rotary_dim; i += 2) {
             invFreq.push_back(1.0 / pow(10000, (float)i / rotary_dim));
@@ -59,6 +61,18 @@ namespace fastllm {
     ChatGLMModel::ChatGLMModel() {
         this->model_type = "chatglm";
 
+        this->bos_token_id = 130004;
+        this->eos_token_id = 130005;
+
+        this->rope = -1.0;
+        this->UpdateSinCos(1.0f);
+        weight.embeddingNames.insert("transformer.word_embeddings.weight");
+        weight.embeddingNames.insert("transformer.embedding.word_embeddings.weight");
+    }
+
+    ChatGLMModel::ChatGLMModel(int block_cnt) {
+        this->model_type = "chatglm2-3b";
+        this->block_cnt = 24;
         this->bos_token_id = 130004;
         this->eos_token_id = 130005;
 

@@ -60,7 +60,10 @@ namespace fastllm {
         basellm *model = nullptr;
         if (modelType == "chatglm") {
             model = (basellm*)(new ChatGLMModel());
-        } else if (modelType == "moss") {
+        } else if (modelType == "chatglm2-3b") {
+            model = (basellm*)(new ChatGLMModel(24));     
+        }
+        else if (modelType == "moss") {
             model = (basellm*)(new MOSSModel());
             model->weight.tokenizer.type = Tokenizer::TokenizerType::NORMAL;
             model->eos_token_id = 106068;
@@ -87,7 +90,16 @@ namespace fastllm {
         std::string modelType = GetModelTypeFromFile(fileName);
         basellm *model = CreateModelWithType(modelType);
         model->LoadFromFile(fileName);
+        // if (fileName.find("3b") != std::string::npos) {
+        //     std::cout << "The string contains '3b'" << std::endl;
+        //     model->block_cnt=24;
+
+        // } else {
+        //     std::cout << "The string does not contain '3b'" << std::endl;
+        // }
+        // printf("%s",fileName.c_str());
         model->WarmUp();
+
         return std::unique_ptr<fastllm::basellm> (model);
     }
 

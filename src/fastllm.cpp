@@ -758,6 +758,7 @@ namespace fastllm {
         if (versionId <= 1) {
             // 老旧的模型，直接通过vocab_size判定模型类型
             int vocabLen = buffer.ReadInt();
+            // printf("aaa:%d",vocabLen);
             if (vocabLen == 106072) {
                 ret = "moss";
             } else if (vocabLen == 64000) {

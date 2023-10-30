@@ -86,6 +86,8 @@ int main(int argc, char **argv) {
     } else {
         inputs.push_back("Hello！");
     }
+    inputs.push_back("Hello！");
+    inputs.push_back("Hello！");
     if (config.batch < 0) {
         config.batch = inputs.size();
     }

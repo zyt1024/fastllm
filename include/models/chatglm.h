@@ -14,7 +14,7 @@ namespace fastllm {
     class ChatGLMModel: public basellm {
 	public:
         ChatGLMModel (); // 构造函数
-
+        ChatGLMModel (int block_cnt);
         // 推理
 		virtual int Forward(
                 const Data &inputIds,
